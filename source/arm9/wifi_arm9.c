@@ -25,8 +25,8 @@ SOFTWARE.
 ******************************************************************************/
 
 
-#include <nds.h>
-#include "dsregs.h"
+#include <nds/nds.h>
+#include "../dsregs.h"
 
 #include "wifi_arm9.h"
 #include <stdarg.h>

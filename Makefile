@@ -1,71 +1,85 @@
-ifeq ($(strip $(DEVKITPRO)),)
-$(error "Please set DEVKITPRO in your environment. export DEVKITPRO=<path to>devkitPro")
+# There potential problem with common source files 
+# they need to be build for each platform independetly
+# as a workaround use `make clean` before each build
+
+# TODO: return back debug build (with -DSGIP_DEBUG)
+
+# Lib version 0.4.2 
+
+TARGET ?= ARM9
+
+# Toolchain
+CC = arm-none-eabi-gcc
+AR = arm-none-eabi-gcc-ar
+
+ARCHFLAGS = -mthumb \
+  			-mthumb-interwork
+ARFLAGS = -rcs
+INCLUDE_FLAGS = -Iinclude
+
+COMMON_SRC_DIR = source
+COMMON_SRC_FILES = $(wildcard $(COMMON_SRC_DIR)/*.c) $(wildcard $(COMMON_SRC_DIR)/*.s)
+
+ifeq ($(TARGET),ARM9)
+	BIN_NAME = libdswifi9.a
+
+	ARM9_SRC_DIR = source/arm9
+
+	SRC_FILES = $(wildcard $(ARM9_SRC_DIR)/*.c)
+
+	ARCHFLAGS += -march=armv5te \
+				 -mtune=arm946e-s \
+				 -DARM9
+else
+	BIN_NAME = libdswifi7.a
+
+	ARM7_SRC_DIR = source/arm7
+	SRC_FILES = $(wildcard $(ARM7_SRC_DIR)/*.c)
+
+	ARCHFLAGS += -mcpu=arm7tdmi \
+				 -mtune=arm7tdmi \
+				 -DARM7
 endif
 
-export TOPDIR	:=	$(CURDIR)
+OBJ_FILES += $(patsubst %.s,%.o, $(patsubst %.c,%.o, $(COMMON_SRC_FILES) $(SRC_FILES)))
 
-export DSWIFI_MAJOR	:= 0
-export DSWIFI_MINOR	:= 4
-export DSWIFI_REVISION	:= 2
+CFLAGS = -Wall -Os \
+		 -ffunction-sections \
+		 -fdata-sections \
+		 -fomit-frame-pointer \
+		 -ffast-math \
+		 $(ARCHFLAGS) \
+		 $(INCLUDE_FLAGS)
 
-VERSION	:=	$(DSWIFI_MAJOR).$(DSWIFI_MINOR).$(DSWIFI_REVISION)
+ASFLAGS = -x assembler-with-cpp \
+		  $(ARCHFLAGS) \
+		  $(INCLUDE_FLAGS)
 
-.PHONY: release debug clean all
+# Build rules
+$(BIN_NAME): $(OBJ_FILES)
+	$(AR) $(ARFLAGS) $@ $^
 
-all: include/dswifi_version.h release debug
+%.o: %.c
+	$(CC) $(CFLAGS) -c $< -o $@
 
-include/dswifi_version.h : Makefile
-	@echo "#ifndef _dswifi_version_h_" > $@
-	@echo "#define _dswifi_version_h_" >> $@
-	@echo >> $@
-	@echo "#define DSWIFI_MAJOR    $(DSWIFI_MAJOR)" >> $@
-	@echo "#define DSWIFI_MINOR    $(DSWIFI_MINOR)" >> $@
-	@echo "#define DSWIFI_REVISION $(DSWIFI_REVISION)" >> $@
-	@echo >> $@
-	@echo '#define DSWIFI_VERSION "'$(DSWIFI_MAJOR).$(DSWIFI_MINOR).$(DSWIFI_REVISION)'"' >> $@
-	@echo >> $@
-	@echo "#endif // _dswifi_version_h_" >> $@
+%.o: %.s
+	$(CC) $(ASFLAGS) -c $< -o $@
 
+# General rules
+.PHONY: all clean rebuild install
 
-#-------------------------------------------------------------------------------
-release: lib
-#-------------------------------------------------------------------------------
-	$(MAKE) -C arm9 BUILD=release
-	$(MAKE) -C arm7 BUILD=release
+all: $(BIN_NAME)
 
-#-------------------------------------------------------------------------------
-debug: lib
-#-------------------------------------------------------------------------------
-	$(MAKE) -C arm9 BUILD=debug
-	$(MAKE) -C arm7 BUILD=debug
-
-#-------------------------------------------------------------------------------
-lib:
-#-------------------------------------------------------------------------------
-	mkdir lib
-
-#-------------------------------------------------------------------------------
 clean:
-#-------------------------------------------------------------------------------
-	@$(MAKE) -C arm9 clean
-	@$(MAKE) -C arm7 clean
-	@$(RM) -r dswifi-src-*.tar.bz2 dswifi-*.tar.bz2 include/dswifi_version.h lib
+	rm -rf $(OBJ_FILES) $(BIN_NAME)
 
-#-------------------------------------------------------------------------------
-dist-src:
-#-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-src-$(VERSION).tar.bz2 arm7/source arm7/Makefile arm9/source arm9/Makefile common include Makefile dswifi_license.txt
+rebuild: clean all
 
-#-------------------------------------------------------------------------------
-dist-bin: all
-#-------------------------------------------------------------------------------
-	@tar --exclude=*CVS* --exclude=.svn -cjf dswifi-$(VERSION).tar.bz2 include lib dswifi_license.txt
+PREFIX ?= /usr/lib
 
-dist: dist-bin dist-src
-
-#-------------------------------------------------------------------------------
-install: dist-bin
-#-------------------------------------------------------------------------------
-	mkdir -p $(DESTDIR)$(DEVKITPRO)/libnds
-	bzip2 -cd dswifi-$(VERSION).tar.bz2 | tar -x -C $(DESTDIR)$(DEVKITPRO)/libnds
-
+install: $(INCLUDE_PATHES)
+	install -d $(DESTDIR)$(PREFIX)/arm-none-eabi/include/dswifi
+	cp -fr include/* $(DESTDIR)$(PREFIX)/arm-none-eabi/include/dswifi
+	chmod -R 644 $(DESTDIR)$(PREFIX)/arm-none-eabi/include/dswifi
+	install -d $(DESTDIR)$(PREFIX)/arm-none-eabi/lib
+	install -m 644 $(BIN_NAME) $(DESTDIR)$(PREFIX)/arm-none-eabi/lib

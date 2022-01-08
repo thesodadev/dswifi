@@ -28,7 +28,7 @@ SOFTWARE.
 #define WIFI_SHARED_H
 
 
-#include <nds.h>
+#include <nds/nds.h>
 
 
 #define WIFIINIT_OPTION_USELED		   0x0002

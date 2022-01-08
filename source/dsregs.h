@@ -28,7 +28,7 @@ SOFTWARE.
 #ifndef DSREGS_H
 #define DSREGS_H
 
-#include <nds.h>
+#include <nds/nds.h>
 
 
 //////////////////////////////////////////////////////////////////////////

@@ -30,7 +30,7 @@ SOFTWARE.
 
 #include <nds/ndstypes.h>
 
-#include "wifi_shared.h"
+#include "../wifi_shared.h"
 
 
 
